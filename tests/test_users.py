@@ -2,6 +2,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
+from users.models import UserRole
+
 User = get_user_model()
 
 
@@ -17,6 +19,15 @@ def create_user(**overrides):
     }
     data.update(overrides)
     return data
+
+
+def authenticate_as_api_admin(api_client):
+    admin_user = User.objects.create_user(
+        email="admin@test.com",
+        password="12345678",
+        role=UserRole.ADMIN,
+    )
+    api_client.force_authenticate(user=admin_user)
 
 
 @pytest.mark.django_db
@@ -64,32 +75,39 @@ def test_create_user_rejects_invalid_payload(api_client, payload, field):
 
 
 @pytest.mark.django_db
-def test_create_user_accepts_admin_role(api_client):
+@pytest.mark.parametrize(
+    "protected_field",
+    ["role", "is_staff", "is_superuser"],
+)
+def test_public_registration_rejects_privileged_fields(api_client, protected_field):
+    protected_value = "admin" if protected_field == "role" else True
     response = api_client.post(
         "/api/v1/users/",
-        create_user(email="admin@test.com", role="admin"),
+        create_user(email="admin@test.com", **{protected_field: protected_value}),
         format="json",
     )
 
-    assert response.status_code == 201
-    assert response.data["role"] == "admin"
+    assert response.status_code == 400
+    assert not User.objects.filter(email="admin@test.com").exists()
 
 
 @pytest.mark.django_db
 def test_list_users_returns_paginated_response(api_client):
     User.objects.create_user(email="one@test.com", password="12345678")
     User.objects.create_user(email="two@test.com", password="12345678")
+    authenticate_as_api_admin(api_client)
 
     response = api_client.get("/api/v1/users/")
 
     assert response.status_code == 200
-    assert response.data["count"] == 2
-    assert len(response.data["results"]) == 2
+    assert response.data["count"] == 3
+    assert len(response.data["results"]) == 3
 
 
 @pytest.mark.django_db
 def test_retrieve_user_and_missing_user(api_client):
     user = User.objects.create_user(email="alex@test.com", password="12345678")
+    authenticate_as_api_admin(api_client)
 
     response = api_client.get(f"/api/v1/users/{user.pk}/")
     missing_response = api_client.get("/api/v1/users/999999/")
@@ -102,6 +120,7 @@ def test_retrieve_user_and_missing_user(api_client):
 @pytest.mark.django_db
 def test_patch_allows_email_role_and_active_status(api_client):
     user = User.objects.create_user(email="alex@test.com", password="12345678")
+    authenticate_as_api_admin(api_client)
 
     response = api_client.patch(
         f"/api/v1/users/{user.pk}/",
@@ -118,6 +137,7 @@ def test_patch_allows_email_role_and_active_status(api_client):
 @pytest.mark.django_db
 def test_patch_rejects_sensitive_fields(api_client):
     user = User.objects.create_user(email="alex@test.com", password="12345678")
+    authenticate_as_api_admin(api_client)
 
     response = api_client.patch(
         f"/api/v1/users/{user.pk}/",
@@ -135,7 +155,20 @@ def test_patch_rejects_sensitive_fields(api_client):
 @pytest.mark.django_db
 def test_delete_is_not_exposed(api_client):
     user = User.objects.create_user(email="alex@test.com", password="12345678")
+    authenticate_as_api_admin(api_client)
 
     response = api_client.delete(f"/api/v1/users/{user.pk}/")
+
+    assert response.status_code == 405
+
+
+@pytest.mark.django_db
+def test_put_is_not_exposed(api_client):
+    user = User.objects.create_user(email="alex@test.com", password="12345678")
+    authenticate_as_api_admin(api_client)
+
+    response = api_client.put(
+        f"/api/v1/users/{user.pk}/", {"is_active": False}, format="json"
+    )
 
     assert response.status_code == 405

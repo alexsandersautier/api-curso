@@ -7,6 +7,8 @@ are not included yet.
 Phase 2 adds an open development Users API. Authentication and permissions are not
 implemented yet.
 
+Phase 3 adds JWT authentication and role-based API permissions.
+
 ## Requirements
 
 - Python 3.13
@@ -47,6 +49,8 @@ python manage.py runserver
 - OpenAPI schema: <http://127.0.0.1:8000/api/schema/>
 - Health: <http://127.0.0.1:8000/api/v1/health/>
 - Users: <http://127.0.0.1:8000/api/v1/users/>
+- Login: <http://127.0.0.1:8000/api/v1/auth/login/>
+- Current user: <http://127.0.0.1:8000/api/v1/auth/me/>
 
 Expected health response:
 
@@ -71,5 +75,15 @@ Available development endpoints:
 - `PATCH /api/v1/users/{id}/`
 
 User creation requires `email` and a password of at least eight characters. The
-optional role is `customer` (default) or `admin`. Responses never contain password,
-`is_staff`, or `is_superuser`.
+resulting role is always `customer`. Responses never contain password, `is_staff`,
+or `is_superuser`.
+
+## Authentication
+
+`POST /api/v1/auth/login/` accepts email and password, returning JWT access and
+refresh tokens. Send access tokens to protected endpoints as `Authorization: Bearer
+<access-token>`. `GET /api/v1/auth/me/` requires a valid access token.
+
+Public registration is limited to customer accounts. User listing, retrieval, and
+updates require an authenticated user with `role = admin`; this is separate from
+Django's `is_staff` and `is_superuser` flags.

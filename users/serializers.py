@@ -22,11 +22,21 @@ class UserCreateSerializer(NormalizedEmailMixin, serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("email", "password", "role")
-        extra_kwargs = {"role": {"required": False}}
+        fields = ("email", "password")
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
+
+    def to_internal_value(self, data):
+        protected_fields = set(data.keys()) - {"email", "password"}
+        if protected_fields:
+            raise serializers.ValidationError(
+                {
+                    field: "This field cannot be set during public registration."
+                    for field in protected_fields
+                }
+            )
+        return super().to_internal_value(data)
 
 
 class UserUpdateSerializer(NormalizedEmailMixin, serializers.ModelSerializer):

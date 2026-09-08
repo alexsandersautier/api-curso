@@ -1,9 +1,11 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from users.models import User
+from users.permissions import IsApiAdmin
 from users.serializers import UserCreateSerializer, UserSerializer, UserUpdateSerializer
 
 
@@ -31,6 +33,11 @@ class UserViewSet(ModelViewSet):
         if self.action == "partial_update":
             return UserUpdateSerializer
         return UserSerializer
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [AllowAny()]
+        return [IsApiAdmin()]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
