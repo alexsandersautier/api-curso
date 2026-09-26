@@ -11,6 +11,8 @@ Phase 3 adds JWT authentication and role-based API permissions.
 
 Phase 4 adds Customer profiles. Registration and profile creation stay separate.
 
+Phase 5 adds category management and public reads of active categories.
+
 ## Requirements
 
 - Python 3.13
@@ -54,6 +56,7 @@ python manage.py runserver
 - Login: <http://127.0.0.1:8000/api/v1/auth/login/>
 - Current user: <http://127.0.0.1:8000/api/v1/auth/me/>
 - Current customer: <http://127.0.0.1:8000/api/v1/customers/me/>
+- Categories: <http://127.0.0.1:8000/api/v1/categories/>
 
 Expected health response:
 
@@ -133,3 +136,31 @@ In Swagger at <http://127.0.0.1:8000/api/docs/>:
 
 The existing `customers/migrations/0001_initial.py` creates the customer profile
 table. No new migration is expected for this phase.
+
+## Categories API
+
+Anyone can list and retrieve active categories. API admins can also see inactive
+categories, create categories, and partially update them. Category names and slugs
+are required; slugs are unique and normalized to lowercase. Full replacement and
+deletion are not exposed.
+
+Endpoints:
+
+- `GET /api/v1/categories/` lists active categories.
+- `GET /api/v1/categories/{id}/` retrieves an active category by UUID.
+- `POST /api/v1/categories/` creates a category; API admin role required.
+- `PATCH /api/v1/categories/{id}/` partially updates a category; API admin role
+  required.
+
+After setting `.env` and creating the local PostgreSQL database, run:
+
+```powershell
+python manage.py migrate
+ruff check .
+python manage.py runserver
+```
+
+In Swagger at <http://127.0.0.1:8000/api/docs/>, confirm anonymous users can read
+active categories, inactive categories are hidden from them, and an API admin can
+create and edit categories. Confirm customer-role users receive `403` for writes.
+The migration `categories/migrations/0001_initial.py` creates the category table.
