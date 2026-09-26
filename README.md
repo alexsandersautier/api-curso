@@ -9,6 +9,8 @@ implemented yet.
 
 Phase 3 adds JWT authentication and role-based API permissions.
 
+Phase 4 adds Customer profiles. Registration and profile creation stay separate.
+
 ## Requirements
 
 - Python 3.13
@@ -51,6 +53,7 @@ python manage.py runserver
 - Users: <http://127.0.0.1:8000/api/v1/users/>
 - Login: <http://127.0.0.1:8000/api/v1/auth/login/>
 - Current user: <http://127.0.0.1:8000/api/v1/auth/me/>
+- Current customer: <http://127.0.0.1:8000/api/v1/customers/me/>
 
 Expected health response:
 
@@ -87,3 +90,46 @@ refresh tokens. Send access tokens to protected endpoints as `Authorization: Bea
 Public registration is limited to customer accounts. User listing, retrieval, and
 updates require an authenticated user with `role = admin`; this is separate from
 Django's `is_staff` and `is_superuser` flags.
+
+## Customers API
+
+Customer registration creates a user account only. An authenticated customer must
+create their profile separately with `POST /api/v1/customers/me/`, providing
+`name`, `phone`, and `document`. The profile is linked to the authenticated user;
+clients cannot choose or change that relationship.
+
+Customer endpoints:
+
+- `GET /api/v1/customers/me/` retrieves the authenticated customer's profile.
+- `POST /api/v1/customers/me/` creates that profile once.
+- `PATCH /api/v1/customers/me/` updates that profile.
+- Admin-role users can list, retrieve, and partially update profiles at
+  `/api/v1/customers/` and `/api/v1/customers/{id}/`.
+
+Profiles use UUID identifiers. `user` and `document` are unique. Deletion and full
+replacement are not exposed.
+
+## Phase 4 manual checks
+
+After setting `.env` and creating the local PostgreSQL database, run:
+
+```powershell
+python manage.py migrate
+pytest tests/test_customers.py tests/test_authentication.py -v
+ruff check .
+python manage.py runserver
+```
+
+In Swagger at <http://127.0.0.1:8000/api/docs/>:
+
+1. Register a user, then log in and authorize Swagger with the returned access
+   token.
+2. Create a profile at `POST /api/v1/customers/me/`; confirm response includes the
+   current user's ID and a UUID profile ID.
+3. Retrieve it and patch a field at `/api/v1/customers/me/`.
+4. Confirm a second creation is rejected, and a customer cannot access the admin
+   customer collection.
+5. Log in as an API admin and confirm collection retrieval and partial updates.
+
+The existing `customers/migrations/0001_initial.py` creates the customer profile
+table. No new migration is expected for this phase.
