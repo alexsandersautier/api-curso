@@ -13,6 +13,8 @@ Phase 4 adds Customer profiles. Registration and profile creation stay separate.
 
 Phase 5 adds category management and public reads of active categories.
 
+Phase 6 adds products and purchasable product items (SKUs).
+
 ## Requirements
 
 - Python 3.13
@@ -57,6 +59,8 @@ python manage.py runserver
 - Current user: <http://127.0.0.1:8000/api/v1/auth/me/>
 - Current customer: <http://127.0.0.1:8000/api/v1/customers/me/>
 - Categories: <http://127.0.0.1:8000/api/v1/categories/>
+- Products: <http://127.0.0.1:8000/api/v1/products/>
+- Product items: <http://127.0.0.1:8000/api/v1/product-items/>
 
 Expected health response:
 
@@ -164,3 +168,35 @@ In Swagger at <http://127.0.0.1:8000/api/docs/>, confirm anonymous users can rea
 active categories, inactive categories are hidden from them, and an API admin can
 create and edit categories. Confirm customer-role users receive `403` for writes.
 The migration `categories/migrations/0001_initial.py` creates the category table.
+
+## Products and Product Items API
+
+Public users can list and retrieve active products. Product items are visible only
+when both the item and its product are active. API admins can list inactive
+records, create resources, and partially update them. Writes require the
+`admin` role. Product deletion and full replacement are not exposed.
+
+Endpoints:
+
+- `GET /api/v1/products/` and `GET /api/v1/products/{id}/`
+- `POST /api/v1/products/` and `PATCH /api/v1/products/{id}/` (admin only)
+- `GET /api/v1/product-items/` and `GET /api/v1/product-items/{id}/`
+- `POST /api/v1/product-items/` and `PATCH /api/v1/product-items/{id}/` (admin only)
+
+Products require a category UUID, name, and optional description. Product items
+require a product UUID, globally unique SKU, name, and non-negative price with two
+decimal places. Both resources use UUID identifiers.
+
+Run migrations and static lint manually:
+
+```powershell
+python manage.py migrate
+pytest tests/test_products.py -v
+ruff check .
+python manage.py runserver
+```
+
+In Swagger at <http://127.0.0.1:8000/api/docs/>, check public active filtering,
+UUID relationships, duplicate SKU and negative-price validation, pagination,
+admin-only writes, and rejected `PUT`/`DELETE` methods. The migration
+`products/migrations/0001_initial.py` creates both tables.

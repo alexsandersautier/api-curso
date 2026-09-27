@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "authentication",
     "categories",
     "customers",
+    "products",
     "users",
 ]
 
