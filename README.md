@@ -1,13 +1,13 @@
 # Course Commerce API
 
-Course Commerce API uses Django REST Framework and local PostgreSQL. Implemented
+Course Commerce API uses Django REST Framework and PostgreSQL. Implemented
 phases cover foundation, users, JWT authentication, customers, categories, products
 and product items, and inventory.
 
 ## Requirements
 
 - Python 3.13
-- Local PostgreSQL server
+- PostgreSQL server (local for development, Render PostgreSQL for deployment)
 - A PostgreSQL database and user matching `.env`
 - A PostgreSQL maintenance database named `postgres`, accessible to the configured
   application user; Django uses it to create and remove test databases.
@@ -34,6 +34,23 @@ python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
 ```
+
+## Deploy to Render
+
+The root `render.yaml` defines a public Render web service and PostgreSQL
+database. To deploy, push this repository to GitHub, then in Render choose
+**New → Blueprint**, connect the repository, review the Blueprint, and apply it.
+Render generates `DJANGO_SECRET_KEY`, sets production mode, connects `DATABASE_URL`,
+collects static files, runs migrations at service startup, and starts Gunicorn.
+The health check uses `/api/v1/health/`.
+
+The included Blueprint uses free plans to make the course API easy to publish.
+Render free web services can sleep while idle, and free PostgreSQL databases expire
+after 30 days. Upgrade the database plan before expiration if its data must persist.
+The API endpoints are public where their permissions allow; admin writes still
+require an admin-role account. Render Shell is unavailable on free web services, so
+creating that account through `python manage.py createsuperuser` requires upgrading
+the web service to a paid plan.
 
 `createsuperuser` prompts for email and password; it does not request a username.
 
