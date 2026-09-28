@@ -59,7 +59,7 @@ def test_public_product_list_shows_active_products_with_pagination(
     assert response.status_code == 200
     assert response.data["count"] == 1
     assert response.data["results"][0]["id"] == str(active_product.pk)
-    assert response.data["results"][0]["category"] == str(category.pk)
+    assert response.data["results"][0]["category"] == category.pk
 
 
 @pytest.mark.django_db
@@ -187,10 +187,10 @@ def test_admin_creates_product_and_product_item_with_uuid_relations(
 
     assert product_response.status_code == 201
     assert uuid.UUID(product_response.data["id"])
-    assert product_response.data["category"] == str(category.pk)
+    assert product_response.data["category"] == category.pk
     assert item_response.status_code == 201
     assert uuid.UUID(item_response.data["id"])
-    assert item_response.data["product"] == product_response.data["id"]
+    assert item_response.data["product"] == uuid.UUID(product_response.data["id"])
     assert item_response.data["price"] == "49.90"
     assert ProductItem.objects.get(sku="TRAVEL-BAG-001").price == Decimal("49.90")
 

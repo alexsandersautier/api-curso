@@ -1,19 +1,8 @@
 # Course Commerce API
 
-Phase 1 provides a local Django REST Framework foundation. PostgreSQL is the only
-application database. Business/domain features, JWT, and authentication endpoints
-are not included yet.
-
-Phase 2 adds an open development Users API. Authentication and permissions are not
-implemented yet.
-
-Phase 3 adds JWT authentication and role-based API permissions.
-
-Phase 4 adds Customer profiles. Registration and profile creation stay separate.
-
-Phase 5 adds category management and public reads of active categories.
-
-Phase 6 adds products and purchasable product items (SKUs).
+Course Commerce API uses Django REST Framework and local PostgreSQL. Implemented
+phases cover foundation, users, JWT authentication, customers, categories, products
+and product items, and inventory.
 
 ## Requirements
 
@@ -61,6 +50,7 @@ python manage.py runserver
 - Categories: <http://127.0.0.1:8000/api/v1/categories/>
 - Products: <http://127.0.0.1:8000/api/v1/products/>
 - Product items: <http://127.0.0.1:8000/api/v1/product-items/>
+- Inventory: <http://127.0.0.1:8000/api/v1/inventory/>
 
 Expected health response:
 
@@ -200,3 +190,30 @@ In Swagger at <http://127.0.0.1:8000/api/docs/>, check public active filtering,
 UUID relationships, duplicate SKU and negative-price validation, pagination,
 admin-only writes, and rejected `PUT`/`DELETE` methods. The migration
 `products/migrations/0001_initial.py` creates both tables.
+
+## Inventory API
+
+Each inventory record belongs to one product item. API admins can list all
+records, create stock records, and update quantity. Public reads show availability
+for active product items with active parent products; responses expose `in_stock`
+but never the exact quantity. Only admins can view or change exact quantities.
+
+Endpoints:
+
+- `GET /api/v1/inventory/` and `GET /api/v1/inventory/{id}/`
+- `POST /api/v1/inventory/` and `PATCH /api/v1/inventory/{id}/` (admin only)
+
+Run migrations and checks manually:
+
+```powershell
+python manage.py migrate
+pytest tests/test_inventory.py -v
+ruff check .
+python manage.py runserver
+```
+
+In Swagger at <http://127.0.0.1:8000/api/docs/>, confirm public responses contain
+`in_stock` without `quantity`, admin responses include exact quantity, zero stock
+returns `in_stock: false`, and duplicate ProductItem inventory is rejected. Check
+admin-only writes and that `PUT`/`DELETE` return `405`. The migration
+`inventory/migrations/0001_initial.py` creates the inventory table.

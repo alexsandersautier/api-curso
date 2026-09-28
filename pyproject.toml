@@ -30,6 +30,7 @@ include = [
     "categories*",
     "core*",
     "customers*",
+    "inventory*",
     "products*",
     "users*",
 ]
