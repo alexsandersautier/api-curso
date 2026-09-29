@@ -2,7 +2,7 @@
 
 Course Commerce API uses Django REST Framework and PostgreSQL. Implemented
 phases cover foundation, users, JWT authentication, customers, categories, products
-and product items, inventory, and customer carts.
+and product items, inventory, customer carts, and order checkout.
 
 ## Requirements
 
@@ -70,6 +70,7 @@ the web service to a paid plan.
 - Inventory: <http://127.0.0.1:8000/api/v1/inventory/>
 - Current cart: <http://127.0.0.1:8000/api/v1/carts/me/>
 - Cart items: <http://127.0.0.1:8000/api/v1/cart-items/>
+- Orders: <http://127.0.0.1:8000/api/v1/orders/>
 
 Expected health response:
 
@@ -266,3 +267,29 @@ one cart, add an in-stock product item, update its quantity, and remove it. Conf
 other customers cannot see its cart items, unavailable stock and duplicate items
 are rejected, and the cart total reflects current prices. Migration
 `carts/migrations/0001_initial.py` creates the cart tables.
+
+## Orders API
+
+Authenticated customers with a profile can create an order with an empty-body
+`POST /api/v1/orders/`. Checkout uses the customer's cart, records each ProductItem
+price and subtotal, validates current availability, decrements inventory, and clears
+the cart in one database transaction. A stock or availability conflict returns
+`409`; an empty cart returns `400`. Customers can list and retrieve only their own
+orders. Order status starts as `pending` and is read-only in this phase; status
+management belongs to the backoffice phase.
+
+Run the migration and checks manually:
+
+```powershell
+python manage.py migrate
+pytest tests/test_orders.py -v
+ruff check .
+python manage.py runserver
+```
+
+In Swagger, add two items to a customer's cart and submit an empty-body checkout.
+Confirm the returned order contains historical unit prices/subtotals, stock falls
+by each ordered quantity, and the cart is empty. Change a ProductItem price after
+checkout and confirm the order prices stay unchanged. Try empty carts, insufficient
+stock, inactive products, and another customer's order IDs. Migration
+`orders/migrations/0001_initial.py` creates the order tables.
