@@ -27,6 +27,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
+namespaces = false
 include = [
     "authentication*",
     "carts*",
