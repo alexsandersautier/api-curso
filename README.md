@@ -2,7 +2,7 @@
 
 Course Commerce API uses Django REST Framework and PostgreSQL. Implemented
 phases cover foundation, users, JWT authentication, customers, categories, products
-and product items, and inventory.
+and product items, inventory, and customer carts.
 
 ## Requirements
 
@@ -68,6 +68,8 @@ the web service to a paid plan.
 - Products: <http://127.0.0.1:8000/api/v1/products/>
 - Product items: <http://127.0.0.1:8000/api/v1/product-items/>
 - Inventory: <http://127.0.0.1:8000/api/v1/inventory/>
+- Current cart: <http://127.0.0.1:8000/api/v1/carts/me/>
+- Cart items: <http://127.0.0.1:8000/api/v1/cart-items/>
 
 Expected health response:
 
@@ -234,3 +236,33 @@ In Swagger at <http://127.0.0.1:8000/api/docs/>, confirm public responses contai
 returns `in_stock: false`, and duplicate ProductItem inventory is rejected. Check
 admin-only writes and that `PUT`/`DELETE` return `405`. The migration
 `inventory/migrations/0001_initial.py` creates the inventory table.
+
+## Cart API
+
+An authenticated customer with a customer profile can create one cart at
+`POST /api/v1/carts/me/` and retrieve it at `GET /api/v1/carts/me/`. Cart items are
+listed and added at `/api/v1/cart-items/`, updated with `PATCH`, or removed with
+`DELETE /api/v1/cart-items/{id}/`. Every item belongs to the authenticated
+customer's cart; clients cannot set the cart or change the product item after
+creation. Duplicate product items are rejected; patch the existing item's quantity
+instead.
+
+Creation and quantity updates require an active product item, an inventory record,
+and enough current stock. Cart contents do not reserve stock. Unit prices, subtotals,
+and cart totals use the current product item price and can change before order
+creation.
+
+Run the migration and checks manually:
+
+```powershell
+python manage.py migrate
+pytest tests/test_carts.py -v
+ruff check .
+python manage.py runserver
+```
+
+In Swagger, create a customer account and profile, authorize with its JWT, create
+one cart, add an in-stock product item, update its quantity, and remove it. Confirm
+other customers cannot see its cart items, unavailable stock and duplicate items
+are rejected, and the cart total reflects current prices. Migration
+`carts/migrations/0001_initial.py` creates the cart tables.

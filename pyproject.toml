@@ -29,6 +29,7 @@ dev = [
 [tool.setuptools.packages.find]
 include = [
     "authentication*",
+    "carts*",
     "categories*",
     "core*",
     "customers*",

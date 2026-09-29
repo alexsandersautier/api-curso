@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "customers",
     "products",
     "inventory",
+    "carts",
     "users",
 ]
 
