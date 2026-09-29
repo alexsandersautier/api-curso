@@ -10,6 +10,7 @@ from carts.models import Cart, CartItem
 from categories.models import Category
 from customers.models import Customer
 from inventory.models import Inventory
+from orders.models import Order
 from products.models import Product, ProductItem
 from users.models import UserRole
 
@@ -186,6 +187,10 @@ def test_orders_require_customer_authentication_and_are_customer_scoped(
 ):
     first_item, _, _, _ = product_items
     CartItem.objects.create(cart=cart, product_item=first_item, quantity=1)
+    other_order = Order.objects.create(
+        customer=another_customer.customer,
+        total=Decimal("12.00"),
+    )
     anonymous_response = api_client.get("/api/v1/orders/")
 
     authenticate(api_client, customer_user)
@@ -193,6 +198,11 @@ def test_orders_require_customer_authentication_and_are_customer_scoped(
     own_orders_response = api_client.get("/api/v1/orders/")
     own_detail_response = api_client.get(
         f"/api/v1/orders/{create_response.data['id']}/"
+    )
+    customer_update_response = api_client.patch(
+        f"/api/v1/orders/{create_response.data['id']}/",
+        {"status": "confirmed"},
+        format="json",
     )
 
     authenticate(api_client, another_customer)
@@ -202,14 +212,53 @@ def test_orders_require_customer_authentication_and_are_customer_scoped(
     )
     authenticate(api_client, admin_user)
     admin_response = api_client.get("/api/v1/orders/")
+    admin_detail_response = api_client.get(f"/api/v1/orders/{other_order.pk}/")
+    admin_update_response = api_client.patch(
+        f"/api/v1/orders/{other_order.pk}/",
+        {"status": "confirmed"},
+        format="json",
+    )
 
     assert anonymous_response.status_code == 401
     assert create_response.status_code == 201
     assert own_orders_response.data["count"] == 1
     assert own_detail_response.status_code == 200
-    assert other_orders_response.data["count"] == 0
+    assert customer_update_response.status_code == 403
+    assert other_orders_response.data["count"] == 1
     assert other_detail_response.status_code == 404
-    assert admin_response.status_code == 403
+    assert admin_response.status_code == 200
+    assert admin_response.data["count"] == 2
+    assert admin_detail_response.status_code == 200
+    assert admin_detail_response.data["id"] == str(other_order.pk)
+    assert admin_update_response.status_code == 200
+    assert admin_update_response.data["status"] == "confirmed"
+
+
+@pytest.mark.django_db
+def test_admin_order_update_accepts_only_a_valid_status(
+    api_client, admin_user, customer_user
+):
+    order = Order.objects.create(
+        customer=customer_user.customer,
+        total=Decimal("12.00"),
+    )
+    authenticate(api_client, admin_user)
+
+    invalid_status_response = api_client.patch(
+        f"/api/v1/orders/{order.pk}/",
+        {"status": "shipped"},
+        format="json",
+    )
+    protected_fields_response = api_client.patch(
+        f"/api/v1/orders/{order.pk}/",
+        {"status": "confirmed", "total": "0.00"},
+        format="json",
+    )
+
+    order.refresh_from_db()
+    assert invalid_status_response.status_code == 400
+    assert protected_fields_response.status_code == 400
+    assert order.status == "pending"
 
 
 @pytest.mark.django_db

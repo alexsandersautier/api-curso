@@ -44,6 +44,18 @@ def test_create_user_hashes_password_and_hides_sensitive_fields(api_client):
 
 
 @pytest.mark.django_db
+def test_superuser_creation_assigns_api_admin_role():
+    user = User.objects.create_superuser(
+        email="root@test.com",
+        password="12345678",
+    )
+
+    assert user.role == UserRole.ADMIN
+    assert user.is_staff is True
+    assert user.is_superuser is True
+
+
+@pytest.mark.django_db
 def test_create_user_normalizes_email_and_rejects_duplicate(api_client):
     first_response = api_client.post(
         "/api/v1/users/",

@@ -10,7 +10,8 @@ from rest_framework.viewsets import ModelViewSet
 from customers.models import Customer
 from customers.permissions import IsCustomer
 from orders.models import Order, OrderItem
-from orders.serializers import OrderSerializer
+from orders.permissions import IsCustomerOrApiAdmin
+from orders.serializers import OrderSerializer, OrderStatusUpdateSerializer
 from orders.services import (
     CartNotFoundError,
     EmptyCartError,
@@ -19,6 +20,8 @@ from orders.services import (
     ProductUnavailableError,
     create_order_from_cart,
 )
+from users.models import UserRole
+from users.permissions import IsApiAdmin
 
 User = get_user_model()
 
@@ -49,18 +52,38 @@ def get_customer(user: User) -> Customer:
             status.HTTP_409_CONFLICT: None,
         },
     ),
+    partial_update=extend_schema(
+        tags=["Orders"],
+        request=OrderStatusUpdateSerializer,
+        responses={status.HTTP_200_OK: OrderSerializer},
+    ),
 )
 class OrderViewSet(ModelViewSet):
     queryset = Order.objects.select_related("customer").order_by("-created_at")
     serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated, IsCustomer]
-    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated, IsCustomerOrApiAdmin]
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_permissions(self):
+        if self.action == "create":
+            permission_classes = [IsAuthenticated, IsCustomer]
+        elif self.action == "partial_update":
+            permission_classes = [IsAuthenticated, IsApiAdmin]
+        else:
+            permission_classes = [IsAuthenticated, IsCustomerOrApiAdmin]
+        return [permission() for permission in permission_classes]
+
+    def get_serializer_class(self):
+        if self.action == "partial_update":
+            return OrderStatusUpdateSerializer
+        return OrderSerializer
 
     def get_queryset(self):
+        queryset = Order.objects.select_related("customer")
+        if self.request.user.role != UserRole.ADMIN:
+            queryset = queryset.filter(customer__user=self.request.user)
         return (
-            Order.objects.filter(customer__user=self.request.user)
-            .select_related("customer")
-            .prefetch_related(
+            queryset.prefetch_related(
                 Prefetch(
                     "items",
                     queryset=OrderItem.objects.select_related("product_item"),
@@ -93,3 +116,10 @@ class OrderViewSet(ModelViewSet):
 
         order = self.get_queryset().get(pk=order.pk)
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        order = self.get_object()
+        serializer = self.get_serializer(order, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        order = serializer.save()
+        return Response(OrderSerializer(order).data)

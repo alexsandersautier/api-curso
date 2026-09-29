@@ -35,3 +35,20 @@ class OrderSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = fields
+
+
+class OrderStatusUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ("status",)
+
+    def to_internal_value(self, data):
+        unexpected_fields = set(data) - {"status"} if isinstance(data, dict) else set()
+        if unexpected_fields:
+            raise serializers.ValidationError(
+                {
+                    field: "Only the order status can be updated."
+                    for field in unexpected_fields
+                }
+            )
+        return super().to_internal_value(data)

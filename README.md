@@ -49,8 +49,9 @@ Render free web services can sleep while idle, and free PostgreSQL databases exp
 after 30 days. Upgrade the database plan before expiration if its data must persist.
 The API endpoints are public where their permissions allow; admin writes still
 require an admin-role account. Render Shell is unavailable on free web services, so
-creating that account through `python manage.py createsuperuser` requires upgrading
-the web service to a paid plan.
+create the initial account with a paid web service Shell or run
+`python manage.py createsuperuser` locally with Render PostgreSQL's external
+connection URL set as `DATABASE_URL`.
 
 `createsuperuser` prompts for email and password; it does not request a username.
 
@@ -96,7 +97,9 @@ Available development endpoints:
 
 User creation requires `email` and a password of at least eight characters. The
 resulting role is always `customer`. Responses never contain password, `is_staff`,
-or `is_superuser`.
+or `is_superuser`. `python manage.py createsuperuser` assigns `role = admin` along
+with Django's staff and superuser flags, giving the initial account access to API
+backoffice endpoints.
 
 ## Authentication
 
@@ -275,14 +278,15 @@ Authenticated customers with a profile can create an order with an empty-body
 price and subtotal, validates current availability, decrements inventory, and clears
 the cart in one database transaction. A stock or availability conflict returns
 `409`; an empty cart returns `400`. Customers can list and retrieve only their own
-orders. Order status starts as `pending` and is read-only in this phase; status
-management belongs to the backoffice phase.
+orders. API admins can list and retrieve orders across customers and change only
+the status with `PATCH /api/v1/orders/{id}/`; valid statuses are `pending`,
+`confirmed`, `cancelled`, and `completed`. Customers cannot update order status.
 
 Run the migration and checks manually:
 
 ```powershell
 python manage.py migrate
-pytest tests/test_orders.py -v
+pytest tests/test_orders.py tests/test_users.py -v
 ruff check .
 python manage.py runserver
 ```
@@ -291,5 +295,7 @@ In Swagger, add two items to a customer's cart and submit an empty-body checkout
 Confirm the returned order contains historical unit prices/subtotals, stock falls
 by each ordered quantity, and the cart is empty. Change a ProductItem price after
 checkout and confirm the order prices stay unchanged. Try empty carts, insufficient
-stock, inactive products, and another customer's order IDs. Migration
-`orders/migrations/0001_initial.py` creates the order tables.
+stock, inactive products, and another customer's order IDs. As API admin, confirm
+all orders are visible and only `status` can be patched; as customer, confirm status
+updates return `403`. Migration `orders/migrations/0001_initial.py` creates the
+order tables. This phase adds no migration.
