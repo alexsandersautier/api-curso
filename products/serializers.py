@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from inventory.models import Inventory
 from products.models import Product, ProductItem
+from products.services import create_product_with_items
 
 
 class ProductItemSummarySerializer(serializers.ModelSerializer):
@@ -85,9 +86,13 @@ class ProductCreateSerializer(ProductWriteSerializer):
     class Meta(ProductWriteSerializer.Meta):
         fields = (*ProductWriteSerializer.Meta.fields, "items")
 
-    def create(self, validated_data):
-        from products.services import create_product_with_items
+    def validate_items(self, items: list[dict]) -> list[dict]:
+        skus = [item["sku"] for item in items]
+        if len(skus) != len(set(skus)):
+            raise serializers.ValidationError("Each product item SKU must be unique.")
+        return items
 
+    def create(self, validated_data):
         items_data = validated_data.pop("items")
         return create_product_with_items(
             product_data=validated_data,
