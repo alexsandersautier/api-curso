@@ -1,9 +1,27 @@
 from rest_framework import serializers
 
+from inventory.models import Inventory
 from products.models import Product, ProductItem
 
 
+class ProductItemSummarySerializer(serializers.ModelSerializer):
+    stock = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductItem
+        fields = ("id", "sku", "name", "price", "stock")
+        read_only_fields = fields
+
+    def get_stock(self, product_item: ProductItem) -> int:
+        try:
+            return product_item.inventory.quantity
+        except Inventory.DoesNotExist:
+            return 0
+
+
 class ProductSerializer(serializers.ModelSerializer):
+    items = ProductItemSummarySerializer(many=True, read_only=True)
+
     class Meta:
         model = Product
         fields = (
@@ -11,6 +29,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "category",
             "name",
             "description",
+            "items",
             "is_active",
             "created_at",
             "updated_at",

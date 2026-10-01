@@ -1,3 +1,4 @@
+from django.db.models import Prefetch
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -34,11 +35,23 @@ class ProductViewSet(ModelViewSet):
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_queryset(self):
-        queryset = Product.objects.select_related("category")
+        item_queryset = ProductItem.objects.select_related("inventory")
         user = self.request.user
         if not user.is_authenticated or user.role != UserRole.ADMIN:
-            queryset = queryset.filter(is_active=True)
-        return queryset.order_by("name")
+            item_queryset = item_queryset.filter(is_active=True)
+            queryset = Product.objects.filter(is_active=True)
+        else:
+            queryset = Product.objects.all()
+        return (
+            queryset.select_related("category")
+            .prefetch_related(
+                Prefetch(
+                    "items",
+                    queryset=item_queryset.order_by("name"),
+                )
+            )
+            .order_by("name")
+        )
 
     def get_serializer_class(self):
         if self.action in {"create", "partial_update"}:
