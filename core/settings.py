@@ -10,6 +10,7 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+ADMIN_BOOTSTRAP_TOKEN = env("ADMIN_BOOTSTRAP_TOKEN", default="")
 render_hostname = env("RENDER_EXTERNAL_HOSTNAME", default="")
 if render_hostname:
     ALLOWED_HOSTS.append(render_hostname)

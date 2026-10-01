@@ -55,6 +55,25 @@ connection URL set as `DATABASE_URL`.
 
 `createsuperuser` prompts for email and password; it does not request a username.
 
+### One-time admin bootstrap
+
+For a one-time bootstrap through the deployed API, set `ADMIN_BOOTSTRAP_TOKEN` in
+the Render service environment to a random value of at least 32 characters. After
+the service restarts, send a `POST` request to
+`https://<your-service>.onrender.com/api/v1/auth/bootstrap-admin/` with the token
+in the `X-Admin-Bootstrap-Token` header and a strong password in the JSON body:
+
+```json
+{"password": "<a-strong-password>"}
+```
+
+The endpoint creates `admin@admin.com` as a Django superuser, works only while no
+admin-role account exists, and is excluded from the OpenAPI schema. Remove
+`ADMIN_BOOTSTRAP_TOKEN` from Render immediately after successful creation. The
+endpoint then returns `404` and cannot be used again after an admin account exists.
+Do not use `admin` as the password; Django's password validators reject weak
+passwords.
+
 ## URLs
 
 - Swagger UI: <http://127.0.0.1:8000/api/docs/>
