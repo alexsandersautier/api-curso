@@ -5,11 +5,16 @@ from products.models import Product, ProductItem
 
 
 class ProductItemSummarySerializer(serializers.ModelSerializer):
+    inventory_id = serializers.UUIDField(
+        source="inventory.pk",
+        read_only=True,
+        allow_null=True,
+    )
     stock = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductItem
-        fields = ("id", "sku", "name", "price", "stock")
+        fields = ("id", "sku", "name", "price", "inventory_id", "stock")
         read_only_fields = fields
 
     def get_stock(self, product_item: ProductItem) -> int:
@@ -47,6 +52,47 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         if not value:
             raise serializers.ValidationError("Name cannot be blank.")
         return value
+
+
+class ProductItemCreateInputSerializer(serializers.Serializer):
+    sku = serializers.CharField(max_length=100)
+    name = serializers.CharField(max_length=255)
+    price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=0,
+    )
+    stock = serializers.IntegerField(min_value=0, required=False, default=0)
+
+    def validate_sku(self, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("SKU cannot be blank.")
+        if ProductItem.objects.filter(sku=value).exists():
+            raise serializers.ValidationError("A product item with this SKU exists.")
+        return value
+
+    def validate_name(self, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Name cannot be blank.")
+        return value
+
+
+class ProductCreateSerializer(ProductWriteSerializer):
+    items = ProductItemCreateInputSerializer(many=True, allow_empty=False)
+
+    class Meta(ProductWriteSerializer.Meta):
+        fields = (*ProductWriteSerializer.Meta.fields, "items")
+
+    def create(self, validated_data):
+        from products.services import create_product_with_items
+
+        items_data = validated_data.pop("items")
+        return create_product_with_items(
+            product_data=validated_data,
+            items_data=items_data,
+        )
 
 
 class ProductItemSerializer(serializers.ModelSerializer):

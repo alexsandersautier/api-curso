@@ -7,6 +7,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from products.models import Product, ProductItem
 from products.serializers import (
+    ProductCreateSerializer,
     ProductItemSerializer,
     ProductItemWriteSerializer,
     ProductSerializer,
@@ -21,7 +22,7 @@ from users.permissions import IsApiAdmin
     retrieve=extend_schema(tags=["Products"], responses=ProductSerializer),
     create=extend_schema(
         tags=["Products"],
-        request=ProductWriteSerializer,
+        request=ProductCreateSerializer,
         responses={status.HTTP_201_CREATED: ProductSerializer},
     ),
     partial_update=extend_schema(
@@ -54,7 +55,9 @@ class ProductViewSet(ModelViewSet):
         )
 
     def get_serializer_class(self):
-        if self.action in {"create", "partial_update"}:
+        if self.action == "create":
+            return ProductCreateSerializer
+        if self.action == "partial_update":
             return ProductWriteSerializer
         return ProductSerializer
 
