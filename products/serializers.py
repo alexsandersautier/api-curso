@@ -26,6 +26,7 @@ class ProductItemSummarySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source="category.name", read_only=True)
     items = ProductItemSummarySerializer(many=True, read_only=True)
 
     class Meta:
@@ -33,6 +34,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "category",
+            "category_name",
             "name",
             "description",
             "items",
